@@ -4988,8 +4988,6 @@ span.label {
   border-bottom: 0.125rem solid transparent;
 }
 .tabs .nav li.active::before {
-  left: 0;
-  right: 0;
   border-bottom-color: var(--primary-color);
 }
 .tabs .tab {

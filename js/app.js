@@ -1,4 +1,89 @@
-const CONFIG = {"version":"0.2.10","hostname":"http://example.com","root":"/","statics":"/","favicon":{"normal":"assets/favicon.ico","hidden":"assets/failure.ico"},"darkmode":true,"auto_dark":{"enable":true,"start":20,"end":7},"auto_scroll":false,"js":{"chart":"npm/frappe-charts@1.5.0/dist/frappe-charts.min.iife.min.js","copy_tex":"npm/katex@0.12.0/dist/contrib/copy-tex.min.js","fancybox":"combine/npm/jquery@3.5.1/dist/jquery.min.js,npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js,npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js"},"css":{"valine":"css/comment.css","katex":"npm/katex@0.12.0/dist/katex.min.css","mermaid":"css/mermaid.css","fancybox":"combine/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css,npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css"},"loader":{"start":true,"switch":false},"search":null,"outime":{"enable":false,"days":90},"quicklink":{"timeout":3000,"priority":true},"playerAPI":"https://api.injahow.cn","disableVL":false,"fireworks":["rgba(255,182,185,.9)","rgba(250,227,217,.9)","rgba(187,222,214,.9)","rgba(138,198,209,.9)"]};const getDocHeight = () => $dom('main > .inner').offsetHeight;
+const CONFIG = {"version":"0.3.0","hostname":"http://example.com","root":"/","statics":"/","favicon":{"normal":"assets/favicon.ico","hidden":"assets/failure.ico"},"darkmode":true,"auto_dark":{"enable":true,"start":20,"end":7},"auto_scroll":false,"js":{"chart":"npm/frappe-charts@1.5.0/dist/frappe-charts.min.iife.min.js","copy_tex":"npm/katex@0.16.7/dist/contrib/copy-tex.min.js","fancybox":"combine/npm/jquery@3.5.1/dist/jquery.min.js,npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js,npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js"},"css":{"valine":"css/comment.css","katex":"npm/katex@0.16.7/dist/katex.min.css","mermaid":"css/mermaid.css","fancybox":"combine/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css,npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css"},"loader":{"start":true,"switch":false},"search":null,"outime":{"enable":false,"days":90},"quicklink":{"timeout":3000,"priority":true},"playerAPI":"https://api.injahow.cn","disableVL":false,"fireworks":["rgba(255,182,185,.9)","rgba(250,227,217,.9)","rgba(187,222,214,.9)","rgba(138,198,209,.9)"]};const transition = (target, type, complete, begin) => {
+    let animation;
+    let display = 'none';
+    switch (type) {
+        case 0:
+            animation = { opacity: [1, 0] };
+            break;
+        case 1:
+            animation = { opacity: [0, 1] };
+            display = 'block';
+            break;
+        case 'bounceUpIn':
+            animation = {
+                begin(anim) {
+                    target.display('block');
+                },
+                translateY: [
+                    { value: -60, duration: 200 },
+                    { value: 10, duration: 200 },
+                    { value: -5, duration: 200 },
+                    { value: 0, duration: 200 }
+                ],
+                opacity: [0, 1]
+            };
+            display = 'block';
+            break;
+        case 'shrinkIn':
+            animation = {
+                begin(anim) {
+                    target.display('block');
+                },
+                scale: [
+                    { value: 1.1, duration: 300 },
+                    { value: 1, duration: 200 }
+                ],
+                opacity: 1
+            };
+            display = 'block';
+            break;
+        case 'slideRightIn':
+            animation = {
+                begin(anim) {
+                    target.display('block');
+                },
+                translateX: ['100%', '0%'],
+                opacity: [0, 1]
+            };
+            display = 'block';
+            break;
+        case 'slideRightOut':
+            animation = {
+                translateX: ['0%', '100%'],
+                opacity: [1, 0]
+            };
+            break;
+        default:
+            animation = type;
+            display = type.display;
+            break;
+    }
+    anime(Object.assign({
+        targets: target,
+        duration: 200,
+        easing: 'linear',
+        begin() {
+            begin && begin();
+        },
+        complete() {
+            target.display(display);
+            complete && complete();
+        }
+    }, animation)).play();
+};
+const pageScroll = (target, offset, complete) => {
+    const opt = {
+        targets: typeof offset === 'number' ? target.parentNode : document.scrollingElement,
+        duration: 500,
+        easing: 'easeInOutQuad',
+        scrollTop: offset || (typeof target === 'number' ? target : (target ? target.getTop() + document.documentElement.scrollTop - siteNavHeight : 0)),
+        complete() {
+            complete && complete();
+        }
+    };
+    anime(opt).play();
+};
+const getDocHeight = () => $dom('main > .inner').offsetHeight;
 const $dom = (selector, element = document) => {
     if (selector[0] === '#') {
         return element.getElementById(selector.substring(1));
@@ -19,6 +104,38 @@ $dom.asyncify = async (selector, element = document) => {
 };
 $dom.asyncifyEach = (selector, callback, element) => {
     $dom.all(selector, element).forEach(callback);
+};
+const assetUrl = (asset, type) => {
+    const str = CONFIG[asset][type];
+    if (str.includes('gh') || str.includes('combine')) {
+        return `https://cdn.jsdelivr.net/${str}`;
+    }
+    if (str.includes('npm')) {
+        return `https://cdn.jsdelivr.net/${str}`;
+    }
+    if (str.includes('http')) {
+        return str;
+    }
+    return `/${str}`;
+};
+const vendorJs = (type, callback, condition) => {
+    if (LOCAL[type]) {
+        getScript(assetUrl('js', type), callback || function () {
+            window[type] = true;
+        }, condition || window[type]);
+    }
+};
+const vendorCss = (type, condition) => {
+    if (window['css' + type]) {
+        return;
+    }
+    if (LOCAL[type]) {
+        document.head.createChild('link', {
+            rel: 'stylesheet',
+            href: assetUrl('css', type)
+        });
+        window['css' + type] = true;
+    }
 };
 Object.assign(HTMLElement.prototype, {
     createChild(tag, obj, positon) {
@@ -125,17 +242,18 @@ Object.assign(HTMLElement.prototype, {
         return this.classList.contains(className);
     }
 });
-const $storage = {
-    set(key, value) {
-        localStorage.setItem(key, value);
-    },
-    get(key) {
-        return localStorage.getItem(key);
-    },
-    del(key) {
-        localStorage.removeItem(key);
-    }
-};
+let inCloudFlare = true;
+window.addEventListener('DOMContentLoaded', function () {
+    inCloudFlare = false;
+});
+if (document.readyState === 'loading') {
+    window.addEventListener('load', function () {
+        if (inCloudFlare) {
+            window.dispatchEvent(new Event('DOMContentLoaded'));
+            console.log('%c ☁️cloudflare patch ' + '%c running(rocket & minify)', 'color: white; background: #ff8c00; padding: 5px 3px;', 'padding: 4px;border:1px solid #ff8c00');
+        }
+    });
+}
 const getScript = (url, callback, condition) => {
     if (condition) {
         callback();
@@ -154,111 +272,6 @@ const getScript = (url, callback, condition) => {
         script.src = url;
         document.head.appendChild(script);
     }
-};
-const assetUrl = (asset, type) => {
-    const str = CONFIG[asset][type];
-    if (str.includes('gh') || str.includes('combine')) {
-        return `https://cdn.jsdelivr.net/${str}`;
-    }
-    if (str.includes('npm')) {
-        return `https://cdn.jsdelivr.net/${str}`;
-    }
-    if (str.includes('http')) {
-        return str;
-    }
-    return `/${str}`;
-};
-const vendorJs = (type, callback, condition) => {
-    if (LOCAL[type]) {
-        getScript(assetUrl('js', type), callback || function () {
-            window[type] = true;
-        }, condition || window[type]);
-    }
-};
-const vendorCss = (type, condition) => {
-    if (window['css' + type]) {
-        return;
-    }
-    if (LOCAL[type]) {
-        document.head.createChild('link', {
-            rel: 'stylesheet',
-            href: assetUrl('css', type)
-        });
-        window['css' + type] = true;
-    }
-};
-const transition = (target, type, complete, begin) => {
-    let animation;
-    let display = 'none';
-    switch (type) {
-        case 0:
-            animation = { opacity: [1, 0] };
-            break;
-        case 1:
-            animation = { opacity: [0, 1] };
-            display = 'block';
-            break;
-        case 'bounceUpIn':
-            animation = {
-                begin(anim) {
-                    target.display('block');
-                },
-                translateY: [
-                    { value: -60, duration: 200 },
-                    { value: 10, duration: 200 },
-                    { value: -5, duration: 200 },
-                    { value: 0, duration: 200 }
-                ],
-                opacity: [0, 1]
-            };
-            display = 'block';
-            break;
-        case 'shrinkIn':
-            animation = {
-                begin(anim) {
-                    target.display('block');
-                },
-                scale: [
-                    { value: 1.1, duration: 300 },
-                    { value: 1, duration: 200 }
-                ],
-                opacity: 1
-            };
-            display = 'block';
-            break;
-        case 'slideRightIn':
-            animation = {
-                begin(anim) {
-                    target.display('block');
-                },
-                translateX: ['100%', '0%'],
-                opacity: [0, 1]
-            };
-            display = 'block';
-            break;
-        case 'slideRightOut':
-            animation = {
-                translateX: ['0%', '100%'],
-                opacity: [1, 0]
-            };
-            break;
-        default:
-            animation = type;
-            display = type.display;
-            break;
-    }
-    anime(Object.assign({
-        targets: target,
-        duration: 200,
-        easing: 'linear',
-        begin() {
-            begin && begin();
-        },
-        complete() {
-            target.display(display);
-            complete && complete();
-        }
-    }, animation)).play();
 };
 const pjaxScript = (element) => {
     const { text, parentNode, id, className, type, src, dataset } = element;
@@ -286,30 +299,62 @@ const pjaxScript = (element) => {
     }
     parentNode.appendChild(script);
 };
-const pageScroll = (target, offset, complete) => {
-    const opt = {
-        targets: typeof offset === 'number' ? target.parentNode : document.scrollingElement,
-        duration: 500,
-        easing: 'easeInOutQuad',
-        scrollTop: offset || (typeof target === 'number' ? target : (target ? target.getTop() + document.documentElement.scrollTop - siteNavHeight : 0)),
-        complete() {
-            complete && complete();
-        }
-    };
-    anime(opt).play();
+const $storage = {
+    set(key, value) {
+        localStorage.setItem(key, value);
+    },
+    get(key) {
+        return localStorage.getItem(key);
+    },
+    del(key) {
+        localStorage.removeItem(key);
+    }
 };
-let inCloudFlare = true;
-window.addEventListener('DOMContentLoaded', function () {
-    inCloudFlare = false;
-});
-if (document.readyState === 'loading') {
-    window.addEventListener('load', function () {
-        if (inCloudFlare) {
-            window.dispatchEvent(new Event('DOMContentLoaded'));
-            console.log('%c ☁️cloudflare patch ' + '%c running(rocket & minify)', 'color: white; background: #ff8c00; padding: 5px 3px;', 'padding: 4px;border:1px solid #ff8c00');
+Vue.createApp({
+    data() {
+        return {};
+    },
+    methods: {
+        changeThemeByBtn() {
+            let c;
+            const btn = $dom('.theme').child('.ic');
+            const neko = BODY.createChild('div', {
+                id: 'neko',
+                innerHTML: '<div class="planet"><div class="sun"></div><div class="moon"></div></div><div class="body"><div class="face"><section class="eyes left"><span class="pupil"></span></section><section class="eyes right"><span class="pupil"></span></section><span class="nose"></span></div></div>'
+            });
+            const hideNeko = () => {
+                transition(neko, {
+                    delay: 2500,
+                    opacity: 0
+                }, () => {
+                    BODY.removeChild(neko);
+                });
+            };
+            if (btn.hasClass('i-sun')) {
+                c = () => {
+                    neko.addClass('dark');
+                    changeTheme('dark');
+                    $storage.set('theme', 'dark');
+                    hideNeko();
+                };
+            }
+            else {
+                neko.addClass('dark');
+                c = () => {
+                    neko.removeClass('dark');
+                    changeTheme();
+                    $storage.set('theme', 'light');
+                    hideNeko();
+                };
+            }
+            transition(neko, 1, () => {
+                setTimeout(c, 210);
+            }, () => {
+                neko.display('block');
+            });
         }
-    });
-}
+    }
+}).mount('#rightNav');
 const statics = CONFIG.statics.indexOf('//') > 0 ? CONFIG.statics : CONFIG.root;
 const scrollAction = { x: 0, y: 0 };
 let diffY = 0;
@@ -336,125 +381,6 @@ let oWinWidth = window.innerWidth;
 let LOCAL_HASH = 0;
 let LOCAL_URL = window.location.href;
 let pjax;
-const changeTheme = (type) => {
-    const btn = $dom('.theme .ic');
-    if (type === 'dark') {
-        HTML.attr('data-theme', type);
-        btn.removeClass('i-sun');
-        btn.addClass('i-moon');
-    }
-    else {
-        HTML.attr('data-theme', null);
-        btn.removeClass('i-moon');
-        btn.addClass('i-sun');
-    }
-};
-const autoDarkmode = () => {
-    if (CONFIG.auto_dark.enable) {
-        if (new Date().getHours() >= CONFIG.auto_dark.start || new Date().getHours() <= CONFIG.auto_dark.end) {
-            changeTheme('dark');
-        }
-        else {
-            changeTheme();
-        }
-    }
-};
-const lazyload = lozad('img, [data-background-image]', {
-    loaded(el) {
-        el.addClass('lozaded');
-    }
-});
-const Loader = {
-    timer: undefined,
-    lock: false,
-    show() {
-        clearTimeout(this.timer);
-        document.body.removeClass('loaded');
-        loadCat.attr('style', 'display:block');
-        Loader.lock = false;
-    },
-    hide(sec) {
-        if (!CONFIG.loader.start) {
-            sec = -1;
-        }
-        this.timer = setTimeout(this.vanish, sec || 3000);
-    },
-    vanish() {
-        if (Loader.lock) {
-            return;
-        }
-        if (CONFIG.loader.start) {
-            transition(loadCat, 0);
-        }
-        document.body.addClass('loaded');
-        Loader.lock = true;
-    }
-};
-const changeMetaTheme = (color) => {
-    if (HTML.attr('data-theme') === 'dark') {
-        color = '#222';
-    }
-    $dom('meta[name="theme-color"]').attr('content', color);
-};
-const themeColorListener = () => {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (mediaQueryList) => {
-        if (mediaQueryList.matches) {
-            changeTheme('dark');
-        }
-        else {
-            changeTheme();
-        }
-    });
-    const t = $storage.get('theme');
-    if (t) {
-        changeTheme(t);
-    }
-    else {
-        if (CONFIG.darkmode) {
-            changeTheme('dark');
-        }
-    }
-};
-const visibilityListener = () => {
-    const iconNode = $dom('[rel="icon"]');
-    document.addEventListener('visibilitychange', () => {
-        switch (document.visibilityState) {
-            case 'hidden':
-                iconNode.attr('href', statics + CONFIG.favicon.hidden);
-                document.title = LOCAL.favicon.hide;
-                if (CONFIG.loader.switch) {
-                    Loader.show();
-                }
-                clearTimeout(titleTime);
-                break;
-            case 'visible':
-                iconNode.attr('href', statics + CONFIG.favicon.normal);
-                document.title = LOCAL.favicon.show;
-                if (CONFIG.loader.switch) {
-                    Loader.hide(1000);
-                }
-                titleTime = setTimeout(() => {
-                    document.title = originTitle;
-                }, 2000);
-                break;
-        }
-    });
-};
-const showtip = (msg) => {
-    if (!msg) {
-        return;
-    }
-    const tipbox = BODY.createChild('div', {
-        innerHTML: msg,
-        className: 'tip'
-    });
-    setTimeout(() => {
-        tipbox.addClass('hide');
-        setTimeout(() => {
-            BODY.removeChild(tipbox);
-        }, 300);
-    }, 3000);
-};
 const resizeHandle = (event) => {
     siteNavHeight = siteNav.changeOrGetHeight();
     headerHightInner = siteHeader.changeOrGetHeight();
@@ -502,6 +428,186 @@ const scrollHandle = (event) => {
     if ($dom('#sidebar').hasClass('affix') || $dom('#sidebar').hasClass('on')) {
         $dom('.percent').changeOrGetWidth(scrollPercent);
     }
+};
+const clickMenu = () => {
+    const menuElement = $dom('#clickMenu');
+    window.oncontextmenu = function (event) {
+        if (event.ctrlKey) {
+            return;
+        }
+        event.preventDefault();
+        let x = event.offsetX;
+        let y = event.offsetY;
+        const winWidth = window.innerWidth;
+        const winHeight = window.innerHeight;
+        const menuWidth = menuElement.offsetWidth;
+        const menuHeight = menuElement.offsetHeight;
+        x = winWidth - menuWidth >= x ? x : winWidth - menuWidth;
+        y = winHeight - menuHeight >= y ? y : winHeight - menuHeight;
+        menuElement.style.top = y + 'px';
+        menuElement.style.left = x + 'px';
+        menuElement.classList.add('active');
+        $dom.each('.clickSubmenu', (submenu) => {
+            if (x > (winWidth - menuWidth - submenu.offsetWidth)) {
+                submenu.style.left = '-200px';
+            }
+            else {
+                submenu.style.left = '';
+                submenu.style.right = '-200px';
+            }
+        });
+    };
+    window.addEventListener('click', () => {
+        menuElement.classList.remove('active');
+    });
+};
+const visibilityListener = () => {
+    const iconNode = $dom('[rel="icon"]');
+    document.addEventListener('visibilitychange', () => {
+        switch (document.visibilityState) {
+            case 'hidden':
+                iconNode.attr('href', statics + CONFIG.favicon.hidden);
+                document.title = LOCAL.favicon.hide;
+                if (CONFIG.loader.switch) {
+                    Loader.show();
+                }
+                clearTimeout(titleTime);
+                break;
+            case 'visible':
+                iconNode.attr('href', statics + CONFIG.favicon.normal);
+                document.title = LOCAL.favicon.show;
+                if (CONFIG.loader.switch) {
+                    Loader.hide(1000);
+                }
+                titleTime = setTimeout(() => {
+                    document.title = originTitle;
+                }, 2000);
+                break;
+        }
+    });
+};
+const changeTheme = (type) => {
+    const btn = $dom('.theme .ic');
+    if (type === 'dark') {
+        HTML.attr('data-theme', type);
+        btn.removeClass('i-sun');
+        btn.addClass('i-moon');
+    }
+    else {
+        HTML.attr('data-theme', null);
+        btn.removeClass('i-moon');
+        btn.addClass('i-sun');
+    }
+};
+const autoDarkmode = () => {
+    if (CONFIG.auto_dark.enable) {
+        if (new Date().getHours() >= CONFIG.auto_dark.start || new Date().getHours() <= CONFIG.auto_dark.end) {
+            changeTheme('dark');
+        }
+        else {
+            changeTheme();
+        }
+    }
+};
+const changeMetaTheme = (color) => {
+    if (HTML.attr('data-theme') === 'dark') {
+        color = '#222';
+    }
+    $dom('meta[name="theme-color"]').attr('content', color);
+};
+const themeColorListener = () => {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (mediaQueryList) => {
+        if (mediaQueryList.matches) {
+            changeTheme('dark');
+        }
+        else {
+            changeTheme();
+        }
+    });
+    const t = $storage.get('theme');
+    if (t) {
+        changeTheme(t);
+    }
+    else {
+        if (CONFIG.darkmode) {
+            changeTheme('dark');
+        }
+    }
+};
+const lazyload = lozad('img, [data-background-image]', {
+    loaded(el) {
+        el.addClass('lozaded');
+    }
+});
+const Loader = {
+    timer: undefined,
+    lock: false,
+    show() {
+        clearTimeout(this.timer);
+        document.body.removeClass('loaded');
+        loadCat.attr('style', 'display:block');
+        Loader.lock = false;
+    },
+    hide(sec) {
+        if (!CONFIG.loader.start) {
+            sec = -1;
+        }
+        this.timer = setTimeout(this.vanish, sec || 3000);
+    },
+    vanish() {
+        if (Loader.lock) {
+            return;
+        }
+        if (CONFIG.loader.start) {
+            transition(loadCat, 0);
+        }
+        document.body.addClass('loaded');
+        Loader.lock = true;
+    }
+};
+const isOutime = () => {
+    let updateTime;
+    if (CONFIG.outime.enable && LOCAL.outime) {
+        const times = document.getElementsByTagName('time');
+        if (times.length === 0) {
+            return;
+        }
+        const posts = document.getElementsByClassName('body md');
+        if (posts.length === 0) {
+            return;
+        }
+        const now = Date.now();
+        const pubTime = new Date(times[0].dateTime);
+        if (times.length === 1) {
+            updateTime = pubTime;
+        }
+        else {
+            updateTime = new Date(times[1].dateTime);
+        }
+        const interval = parseInt(String(now - updateTime));
+        const days = parseInt(String(CONFIG.outime.days)) || 30;
+        if (interval > (days * 86400000)) {
+            const publish = parseInt(String((now - pubTime) / 86400000));
+            const updated = parseInt(String(interval / 86400000));
+            const template = LOCAL.template.replace('{{publish}}', String(publish)).replace('{{updated}}', String(updated));
+            posts[0].insertAdjacentHTML('afterbegin', template);
+        }
+    }
+};
+const showtip = (msg) => {
+    if (!msg) {
+        return;
+    }
+    const tipbox = BODY.createChild('div', {
+        innerHTML: msg,
+        className: 'tip'
+    });
+    setTimeout(() => {
+        tipbox.addClass('hide');
+        setTimeout(() => {
+            BODY.removeChild(tipbox);
+        }, 300);
+    }, 3000);
 };
 const pagePosition = () => {
     if (CONFIG.auto_scroll) {
@@ -563,66 +669,24 @@ const clipBoard = (str, callback) => {
         BODY.removeChild(ta);
     }
 };
-const isOutime = () => {
-    let updateTime;
-    if (CONFIG.outime.enable && LOCAL.outime) {
-        const times = document.getElementsByTagName('time');
-        if (times.length === 0) {
-            return;
-        }
-        const posts = document.getElementsByClassName('body md');
-        if (posts.length === 0) {
-            return;
-        }
-        const now = Date.now();
-        const pubTime = new Date(times[0].dateTime);
-        if (times.length === 1) {
-            updateTime = pubTime;
-        }
-        else {
-            updateTime = new Date(times[1].dateTime);
-        }
-        const interval = parseInt(String(now - updateTime));
-        const days = parseInt(String(CONFIG.outime.days)) || 30;
-        if (interval > (days * 86400000)) {
-            const publish = parseInt(String((now - pubTime) / 86400000));
-            const updated = parseInt(String(interval / 86400000));
-            const template = LOCAL.template.replace('{{publish}}', String(publish)).replace('{{updated}}', String(updated));
-            posts[0].insertAdjacentHTML('afterbegin', template);
-        }
+const loadComments = () => {
+    const element = $dom('#comments');
+    if (!element) {
+        goToComment.display('none');
+        return;
     }
-};
-const clickMenu = () => {
-    const menuElement = $dom('#clickMenu');
-    window.oncontextmenu = function (event) {
-        if (event.ctrlKey) {
-            return;
+    else {
+        goToComment.display('');
+    }
+    const io = new IntersectionObserver((entries, observer) => {
+        const entry = entries[0];
+        vendorCss('valine');
+        if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            transition($dom('#comments'), 'bounceUpIn');
+            observer.disconnect();
         }
-        event.preventDefault();
-        let x = event.offsetX;
-        let y = event.offsetY;
-        const winWidth = window.innerWidth;
-        const winHeight = window.innerHeight;
-        const menuWidth = menuElement.offsetWidth;
-        const menuHeight = menuElement.offsetHeight;
-        x = winWidth - menuWidth >= x ? x : winWidth - menuWidth;
-        y = winHeight - menuHeight >= y ? y : winHeight - menuHeight;
-        menuElement.style.top = y + 'px';
-        menuElement.style.left = x + 'px';
-        menuElement.classList.add('active');
-        $dom.each('.clickSubmenu', (submenu) => {
-            if (x > (winWidth - menuWidth - submenu.offsetWidth)) {
-                submenu.style.left = '-200px';
-            }
-            else {
-                submenu.style.left = '';
-                submenu.style.right = '-200px';
-            }
-        });
-    };
-    window.addEventListener('click', () => {
-        menuElement.classList.remove('active');
     });
+    io.observe(element);
 };
 const cardActive = () => {
     if (!$dom('.index.wrap')) {
@@ -972,75 +1036,6 @@ const postBeauty = () => {
         });
     }
 };
-const tabFormat = () => {
-    let first_tab;
-    $dom.each('div.tab', (element) => {
-        if (element.attr('data-ready')) {
-            return;
-        }
-        const id = element.attr('data-id');
-        const title = element.attr('data-title');
-        let box = $dom('#' + id);
-        if (!box) {
-            box = document.createElement('div');
-            box.className = 'tabs';
-            box.id = id;
-            box.innerHTML = '<div class="show-btn"></div>';
-            const showBtn = box.child('.show-btn');
-            showBtn.addEventListener('click', () => {
-                pageScroll(box);
-            });
-            element.parentNode.insertBefore(box, element);
-            first_tab = true;
-        }
-        else {
-            first_tab = false;
-        }
-        let ul = box.child('.nav ul');
-        if (!ul) {
-            ul = box.createChild('div', {
-                className: 'nav',
-                innerHTML: '<ul></ul>'
-            }).child('ul');
-        }
-        const li = ul.createChild('li', {
-            innerHTML: title
-        });
-        if (first_tab) {
-            li.addClass('active');
-            element.addClass('active');
-        }
-        li.addEventListener('click', (event) => {
-            const target = event.currentTarget;
-            box.find('.active').forEach((el) => {
-                el.removeClass('active');
-            });
-            element.addClass('active');
-            target.addClass('active');
-        });
-        box.appendChild(element);
-        element.attr('data-ready', String(true));
-    });
-};
-const loadComments = () => {
-    const element = $dom('#comments');
-    if (!element) {
-        goToComment.display('none');
-        return;
-    }
-    else {
-        goToComment.display('');
-    }
-    const io = new IntersectionObserver((entries, observer) => {
-        const entry = entries[0];
-        vendorCss('valine');
-        if (entry.isIntersecting || entry.intersectionRatio > 0) {
-            transition($dom('#comments'), 'bounceUpIn');
-            observer.disconnect();
-        }
-    });
-    io.observe(element);
-};
 const algoliaSearch = (pjax) => {
     if (CONFIG.search === null) {
         return;
@@ -1150,6 +1145,56 @@ const algoliaSearch = (pjax) => {
         if (event.key === 'Escape') {
             onPopupClose();
         }
+    });
+};
+const tabFormat = () => {
+    let first_tab;
+    $dom.each('div.tab', (element) => {
+        if (element.attr('data-ready')) {
+            return;
+        }
+        const id = element.attr('data-id');
+        const title = element.attr('data-title');
+        let box = $dom('#' + id);
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'tabs';
+            box.id = id;
+            box.innerHTML = '<div class="show-btn"></div>';
+            const showBtn = box.child('.show-btn');
+            showBtn.addEventListener('click', () => {
+                pageScroll(box);
+            });
+            element.parentNode.insertBefore(box, element);
+            first_tab = true;
+        }
+        else {
+            first_tab = false;
+        }
+        let ul = box.child('.nav ul');
+        if (!ul) {
+            ul = box.createChild('div', {
+                className: 'nav',
+                innerHTML: '<ul></ul>'
+            }).child('ul');
+        }
+        const li = ul.createChild('li', {
+            innerHTML: title
+        });
+        if (first_tab) {
+            li.addClass('active');
+            element.addClass('active');
+        }
+        li.addEventListener('click', (event) => {
+            const target = event.currentTarget;
+            box.find('.active').forEach((el) => {
+                el.removeClass('active');
+            });
+            element.addClass('active');
+            target.addClass('active');
+        });
+        box.appendChild(element);
+        element.attr('data-ready', String(true));
     });
 };
 const domInit = () => {
@@ -1296,52 +1341,6 @@ window.addEventListener('DOMContentLoaded', siteInit, {
     passive: true
 });
 console.log('%c Theme.ShokaX v' + CONFIG.version + ' %c https://github.com/theme-shoka-x/hexo-theme-shokaX ', 'color: white; background: #e9546b; padding:5px 0;', 'padding:4px;border:1px solid #e9546b;');
-console.log('%c by kaitaku ' + '%c https://www.kaitaku.xyz', 'color: white; background: #00bfff; padding: 5px 3px;', 'padding: 4px;border:1px solid #00bfff');
-Vue.createApp({
-    data() {
-        return {};
-    },
-    methods: {
-        changeThemeByBtn() {
-            let c;
-            const btn = $dom('.theme').child('.ic');
-            const neko = BODY.createChild('div', {
-                id: 'neko',
-                innerHTML: '<div class="planet"><div class="sun"></div><div class="moon"></div></div><div class="body"><div class="face"><section class="eyes left"><span class="pupil"></span></section><section class="eyes right"><span class="pupil"></span></section><span class="nose"></span></div></div>'
-            });
-            const hideNeko = () => {
-                transition(neko, {
-                    delay: 2500,
-                    opacity: 0
-                }, () => {
-                    BODY.removeChild(neko);
-                });
-            };
-            if (btn.hasClass('i-sun')) {
-                c = () => {
-                    neko.addClass('dark');
-                    changeTheme('dark');
-                    $storage.set('theme', 'dark');
-                    hideNeko();
-                };
-            }
-            else {
-                neko.addClass('dark');
-                c = () => {
-                    neko.removeClass('dark');
-                    changeTheme();
-                    $storage.set('theme', 'light');
-                    hideNeko();
-                };
-            }
-            transition(neko, 1, () => {
-                setTimeout(c, 210);
-            }, () => {
-                neko.display('block');
-            });
-        }
-    }
-}).mount('#rightNav');
 const sideBarToggleHandle = (event, force) => {
     if (sideBar.hasClass('on')) {
         sideBar.removeClass('on');
@@ -2204,7 +2203,7 @@ const mediaPlayer = (t, config) => {
                     const lrcText = lyric[i]
                         .replace(/.*\[(\d{2}):(\d{2})(\.(\d{2,3}))?]/g, '')
                         .replace(/<(\d{2}):(\d{2})(\.(\d{2,3}))?>/g, '')
-                        .trim;
+                        .trim();
                     if (lrcTimes) {
                         const timeLen = lrcTimes.length;
                         for (let j = 0; j < timeLen; j++) {
